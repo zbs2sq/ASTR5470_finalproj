@@ -5,7 +5,6 @@ Quasar Spectral Analysis in Python
 
 Sources of Help:
 https://www.pythonguis.com/tutorials/plotting-matplotlib/
-Probably Alex Garcia
 '''
 
 # ----------------------------
@@ -57,8 +56,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.continuum_wavelengths = []
         self.continuum_fluxes = []
         
+        self.continuum_fit = []
+        
+        self.xclick = 0.
+        self.yclick = 0.
+        
+        
         # Some booleans to keep track of whether things have been done
         self.file_is_loaded = False
+        self.fitting_line = False
+        
         
         # Set up canvas
         self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
@@ -69,6 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.setWindowTitle("Spectrum Viewer")
         self.setGeometry(100, 100, 800, 600)
+        
         
         # Buttons
         toolbar = NavigationToolbar(self.canvas, self)
@@ -85,9 +93,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.def_cont_button.clicked.connect(self.define_continuum)
         self.def_cont_button.setGeometry(170, 10, 80, 30)
         
+        self.fit_line_button = QPushButton("Fit Spectral Line", self)
+        self.fit_line_button.clicked.connect(self.toggle_fit_spectral_line)
+        self.fit_line_button.setGeometry(170, 10, 80, 30)
+        
         self.smooth_button = QPushButton("Smooth", self)
         self.smooth_button.clicked.connect(self.smooth)
         self.smooth_button.setGeometry(170, 10, 80, 30)
+        
+        self.canvas.mpl_connect('button_press_event', self.on_click)
+        
         
         '''
         To Do/Functions I Want To Add
@@ -95,6 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         - Smoothing function should have a feature to allow you to choose how much to smooth by...
         - Continuum fit should have an extra feature where you can refine it by rejected points outside of the stddev 
             - Requires a continuum to already be fit...
+        - A subtract continuum function
         '''
         
         layout = QtWidgets.QVBoxLayout()
@@ -103,6 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.haircut_clip_button)
         layout.addWidget(self.def_cont_button)
         layout.addWidget(self.smooth_button)
+        layout.addWidget(self.fit_line_button)
         layout.addWidget(self.canvas)
 
         widget = QtWidgets.QWidget()
@@ -110,10 +127,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(widget)
         self.show()
     
+        
     
     def read_csv(filename):
         data = pd.read_csv(filename, delim_whitespace=True, skiprows=1)
         return data.iloc[:, 0], data.iloc[:, 1]
+    
     
     def open_file(self):
         '''
@@ -127,11 +146,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.wavelengths, self.fluxes = (data.iloc[:, 0], data.iloc[:, 1])
             self.canvas.axes.cla()
             self.canvas.axes.plot(self.wavelengths, self.fluxes)
+            self.canvas.axes.axhline(0, color = 'black')
             self.canvas.axes.set_xlabel("Wavelength (Angstroms)")
             self.canvas.axes.set_ylabel("Flux (erg/s/cm2/A)")
             self.canvas.draw()
             
+            
     def define_continuum(self):
+        '''
+        This function takes every 200th datapoint within the function and fits a second order polynomial to it, shown in red.
+        It then removes all points >1*sigma away from the second order fit.
+        Removed points are shown in red.
+        It then fits a fifth order polynomial to the remaining points, shown in green.
+        '''
         try:
             x = self.wavelengths
             y = self.fluxes
@@ -144,26 +171,36 @@ class MainWindow(QtWidgets.QMainWindow):
             
             residuals = orig_continuum_fluxes - original_yfit
             std_residuals = np.std(residuals)
-            filtered_indices = np.abs(residuals) <= std_residuals  # Keep points within 1 stddev
+            filtered_indices = np.abs(residuals) <= std_residuals
 
             self.continuum_wavelengths = orig_continuum_wavelengths[filtered_indices]
             self.continuum_fluxes = orig_continuum_fluxes[filtered_indices]
             
             filtered_fit = np.polyfit(self.continuum_wavelengths, self.continuum_fluxes, 5, full=True)
             filtered_yfit = np.polyval(filtered_fit[0], self.continuum_wavelengths)
+            self.continuum_fit = np.polyval(filtered_fit[0], self.wavelengths)
+            
+            print(type(filtered_fit))
+            print(filtered_fit)
 
             self.canvas.axes.plot(orig_continuum_wavelengths, orig_continuum_fluxes, 'o', color = 'red')
             self.canvas.axes.plot(self.continuum_wavelengths, self.continuum_fluxes, 'o', color='green')
+            
             self.canvas.axes.plot(orig_continuum_wavelengths, original_yfit, '-', color='red')
-            self.canvas.axes.plot(self.continuum_wavelengths, filtered_yfit, '-', color='green')
+            self.canvas.axes.plot(self.wavelengths, self.continuum_fit, '-', color='green')
+            # self.canvas.axes.plot(self.continuum_wavelengths, filtered_yfit, '-', color='green')
             self.canvas.draw()
         except:
             if not self.file_is_loaded:
                 print("Load a file in!!")
             else:
                 traceback.print_exc()
+                
     
     def smooth(self):
+        '''
+        This function isn't functioning quite how I'd like it to yet...
+        '''
         try:
             x = self.wavelengths
             y = self.fluxes
@@ -179,12 +216,57 @@ class MainWindow(QtWidgets.QMainWindow):
                 print("Load a file in!!")
             else:
                 traceback.print_exc()
+                
     
     def haircut_clip(self):
         pass
+    
+    
+    def on_click(self, event):
+        if event.button == 1 and event.inaxes:
+            self.xclick, self.yclick = event.xdata, event.ydata
+            
+            if self.fitting_line:
+                print("I am fitting a line now")
+                print(self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)])
+                
+                # This block finds the nearest flux maximum to where you click
+                line_index = np.searchsorted(self.wavelengths, self.xclick)
+                click_wavelength = self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)]
+                flux_range = self.fluxes[line_index - 15:line_index + 15]
+                
+                flux_max_index = np.argmax(flux_range)
+                print(line_index)
+                print(flux_max_index)
+                max_wavelength_index = line_index - 15 + flux_max_index
+                
+                linewidth = 50
+                
+                cont_subtracted_fluxes = self.fluxes[max_wavelength_index - linewidth:max_wavelength_index + linewidth] - self.continuum_fit[max_wavelength_index - linewidth:max_wavelength_index + linewidth]
+                
+                self.canvas.axes.plot(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth], cont_subtracted_fluxes, '--', color = 'red')
+                self.canvas.axes.axvline(click_wavelength, color = 'orange')
+                self.canvas.axes.axvline(self.wavelengths[max_wavelength_index], color = 'red')
+                
+                self.canvas.draw()
+                self.fitting_line = False
+                
+    
+    def toggle_fit_spectral_line(self):
+        self.fitting_line = True
         
-        
+    def fit_spectral_line(self):
+        # May make this into a seperate function that I can call in on_click()
+        return None
 
+class SpectralLine():
+    '''
+    For each line, should store:
+    - Wavelength
+    - Maximum flux
+    - Equivalent width
+    '''
+        
 
 app = QtWidgets.QApplication(sys.argv)
 w = MainWindow()
