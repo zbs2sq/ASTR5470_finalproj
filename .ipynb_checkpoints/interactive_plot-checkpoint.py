@@ -5,6 +5,7 @@ Quasar Spectral Analysis in Python
 
 Sources of Help:
 https://www.pythonguis.com/tutorials/plotting-matplotlib/
+
 '''
 
 # ----------------------------
@@ -24,6 +25,8 @@ from matplotlib.figure import Figure
 
 from scipy import interpolate
 from scipy.optimize import curve_fit
+from scipy.stats import norm
+from scipy.optimize import minimize
 # ----------------------------
 
 
@@ -36,7 +39,12 @@ class MplCanvas(FigureCanvasQTAgg):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
-        
+
+class Eq():
+    
+    def gaussian(x, amplitude, mean, stddev):
+        return amplitude * np.exp(-((x - mean) / stddev) ** 2 / 2)
+    
         
 # ----------------------------
 # Main window class
@@ -64,6 +72,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Some booleans to keep track of whether things have been done
         self.file_is_loaded = False
+        self.continuum_is_calculated = False
         self.fitting_line = False
         
         
@@ -147,8 +156,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.canvas.axes.cla()
             self.canvas.axes.plot(self.wavelengths, self.fluxes)
             self.canvas.axes.axhline(0, color = 'black')
+            self.canvas.axes.set_title(filename[-14:-9])
             self.canvas.axes.set_xlabel("Wavelength (Angstroms)")
             self.canvas.axes.set_ylabel("Flux (erg/s/cm2/A)")
+            self.canvas.axes.legend()
             self.canvas.draw()
             
             
@@ -190,6 +201,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.canvas.axes.plot(self.wavelengths, self.continuum_fit, '-', color='green')
             # self.canvas.axes.plot(self.continuum_wavelengths, filtered_yfit, '-', color='green')
             self.canvas.draw()
+            self.continuum_is_calculated = True
         except:
             if not self.file_is_loaded:
                 print("Load a file in!!")
@@ -221,43 +233,61 @@ class MainWindow(QtWidgets.QMainWindow):
     def haircut_clip(self):
         pass
     
-    
     def on_click(self, event):
         if event.button == 1 and event.inaxes:
             self.xclick, self.yclick = event.xdata, event.ydata
-            
-            if self.fitting_line:
-                print("I am fitting a line now")
-                print(self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)])
-                
-                # This block finds the nearest flux maximum to where you click
-                line_index = np.searchsorted(self.wavelengths, self.xclick)
-                click_wavelength = self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)]
-                flux_range = self.fluxes[line_index - 15:line_index + 15]
-                
-                flux_max_index = np.argmax(flux_range)
-                print(line_index)
-                print(flux_max_index)
-                max_wavelength_index = line_index - 15 + flux_max_index
-                
-                linewidth = 50
-                
-                cont_subtracted_fluxes = self.fluxes[max_wavelength_index - linewidth:max_wavelength_index + linewidth] - self.continuum_fit[max_wavelength_index - linewidth:max_wavelength_index + linewidth]
-                
-                self.canvas.axes.plot(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth], cont_subtracted_fluxes, '--', color = 'red')
-                self.canvas.axes.axvline(click_wavelength, color = 'orange')
-                self.canvas.axes.axvline(self.wavelengths[max_wavelength_index], color = 'red')
-                
-                self.canvas.draw()
-                self.fitting_line = False
-                
-    
+            try:
+                if self.fitting_line:
+                    AnalysisFunc.fit_spectral_line(self)
+            except:
+                if not self.file_is_loaded:
+                    print("Load a file in!!")
+                elif not self.continuum_is_calculated:
+                    print("Make sure to define your continuum!")
+                else:
+                    traceback.print_exc()
+
     def toggle_fit_spectral_line(self):
         self.fitting_line = True
         
+        
+        
+        
+class AnalysisFunc():
     def fit_spectral_line(self):
-        # May make this into a seperate function that I can call in on_click()
-        return None
+        print("I am fitting a line now")
+        print(self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)])
+
+        # This block finds the nearest flux maximum to where you click
+        line_index = np.searchsorted(self.wavelengths, self.xclick)
+        click_wavelength = self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)]
+        flux_range = self.fluxes[line_index - 15:line_index + 15]
+
+        flux_max_index = np.argmax(flux_range)
+        max_wavelength_index = line_index - 15 + flux_max_index
+        linewidth = 50
+
+        cont_subtracted_fluxes = self.fluxes[max_wavelength_index - linewidth:max_wavelength_index + linewidth] - self.continuum_fit[max_wavelength_index - linewidth:max_wavelength_index + linewidth]
+
+
+        xdata = np.array(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth])
+        
+        p0 = [np.max(cont_subtracted_fluxes), xdata[np.argmax(cont_subtracted_fluxes)], 1.0] 
+
+        popt, pcov = curve_fit(Eq.gaussian, xdata, cont_subtracted_fluxes, p0=p0)
+
+        fit_y = Eq.gaussian(xdata, *popt)
+
+        self.canvas.axes.plot(xdata, fit_y, '--', color='blue', label=f'Line {self.wavelengths[max_wavelength_index]}')
+        
+        
+        self.canvas.axes.plot(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth], cont_subtracted_fluxes, '--', color = 'red')        
+        # self.canvas.axes.axvline(click_wavelength, color = 'orange')
+        # self.canvas.axes.plot(self.wavelengths[max_wavelength_index], self.fluxes[flux_max_index], color = 'red')
+        self.canvas.axes.legend()
+        
+        self.canvas.draw()
+        self.fitting_line = False
 
 class SpectralLine():
     '''
