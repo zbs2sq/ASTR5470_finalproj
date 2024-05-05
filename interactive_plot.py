@@ -39,7 +39,11 @@ class MplCanvas(FigureCanvasQTAgg):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
-
+        
+        
+# ----------------------------
+# For any equations used throughout
+# ----------------------------
 class Eq():
     
     def gaussian(x, amplitude, mean, stddev):
@@ -117,8 +121,6 @@ class MainWindow(QtWidgets.QMainWindow):
         To Do/Functions I Want To Add
         - Revert to original (save the original file somewhere, then revert back to that if needed)
         - Smoothing function should have a feature to allow you to choose how much to smooth by...
-        - Continuum fit should have an extra feature where you can refine it by rejected points outside of the stddev 
-            - Requires a continuum to already be fit...
         - A subtract continuum function
         '''
         
@@ -141,6 +143,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def read_csv(filename):
         data = pd.read_csv(filename, delim_whitespace=True, skiprows=1)
         return data.iloc[:, 0], data.iloc[:, 1]
+    
     
     
     def open_file(self):
@@ -212,14 +215,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def smooth(self):
         '''
         This function isn't functioning quite how I'd like it to yet...
+        Currently all it does is take every other point. However, I should actually implement a smoothing filter. I will hopefully do that.
         '''
         try:
-            x = self.wavelengths
-            y = self.fluxes
-            f = interpolate.interp1d(x, y)
-
-            self.wavelengths = np.arange(self.wavelengths[0], self.wavelengths[len(self.wavelengths) - 1], 5)
-            self.fluxes = f(self.wavelengths)
+            self.wavelengths = self.wavelengths[::2]
+            self.fluxes = self.fluxes[::2]
+            # self.fluxes = f(self.wavelengths)
             self.canvas.axes.cla()
             self.canvas.axes.plot(self.wavelengths, self.fluxes, '-', color = 'blue')
             self.canvas.draw()
@@ -233,12 +234,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def haircut_clip(self):
         pass
     
+    
+    
     def on_click(self, event):
         if event.button == 1 and event.inaxes:
             self.xclick, self.yclick = event.xdata, event.ydata
             try:
                 if self.fitting_line:
-                    AnalysisFunc.fit_spectral_line(self)
+                    MainWindow.fit_spectral_line(self)
             except:
                 if not self.file_is_loaded:
                     print("Load a file in!!")
@@ -246,56 +249,61 @@ class MainWindow(QtWidgets.QMainWindow):
                     print("Make sure to define your continuum!")
                 else:
                     traceback.print_exc()
+                    
+
 
     def toggle_fit_spectral_line(self):
         self.fitting_line = True
         
         
-        
-        
-class AnalysisFunc():
+    
     def fit_spectral_line(self):
-        print("I am fitting a line now")
-        print(self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)])
-
-        # This block finds the nearest flux maximum to where you click
+        '''
+        This function finds the maximum flux value within a set range of where you click to fit. 
+        It then fits a Gaussian
+        
+        Should implement a part of the function where you click on the edges of the line to define it.
+        '''
+        
+        # This section searches for the nearest local maximum
         line_index = np.searchsorted(self.wavelengths, self.xclick)
         click_wavelength = self.wavelengths[np.searchsorted(self.wavelengths, self.xclick)]
         flux_range = self.fluxes[line_index - 15:line_index + 15]
-
         flux_max_index = np.argmax(flux_range)
         max_wavelength_index = line_index - 15 + flux_max_index
+        
+        # This block then fits a Gaussian to the flux values for 50 points to the left and right. 
+        # I might change this soon because this is obviously not enough for some lines, and far too much for others.
         linewidth = 50
-
         cont_subtracted_fluxes = self.fluxes[max_wavelength_index - linewidth:max_wavelength_index + linewidth] - self.continuum_fit[max_wavelength_index - linewidth:max_wavelength_index + linewidth]
-
-
         xdata = np.array(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth])
-        
         p0 = [np.max(cont_subtracted_fluxes), xdata[np.argmax(cont_subtracted_fluxes)], 1.0] 
-
-        popt, pcov = curve_fit(Eq.gaussian, xdata, cont_subtracted_fluxes, p0=p0)
-
-        fit_y = Eq.gaussian(xdata, *popt)
-
-        self.canvas.axes.plot(xdata, fit_y, '--', color='blue', label=f'Line {self.wavelengths[max_wavelength_index]}')
-        
-        
+        params, covariance = curve_fit(Eq.gaussian, xdata, cont_subtracted_fluxes, p0=p0)
+        fit_y = Eq.gaussian(xdata, *params)
+    
+        # This block now saves the data of that line. I hope.
+        line = SpectralLine(wavelength = self.wavelengths[max_wavelength_index], fit = fit_y)
+        print(line)
+               
+        # Plotting!
+        self.canvas.axes.plot(xdata, fit_y, '--', label=f'Line {self.wavelengths[max_wavelength_index]}')    
         self.canvas.axes.plot(self.wavelengths[max_wavelength_index - linewidth:max_wavelength_index + linewidth], cont_subtracted_fluxes, '--', color = 'red')        
-        # self.canvas.axes.axvline(click_wavelength, color = 'orange')
-        # self.canvas.axes.plot(self.wavelengths[max_wavelength_index], self.fluxes[flux_max_index], color = 'red')
         self.canvas.axes.legend()
-        
         self.canvas.draw()
         self.fitting_line = False
 
-class SpectralLine():
+        
+class SpectralLine:
     '''
     For each line, should store:
     - Wavelength
     - Maximum flux
     - Equivalent width
     '''
+    
+    def __init__(self, wavelength, fit):
+        self.__line_wav = wavelength
+        self.__line_fit = fit
         
 
 app = QtWidgets.QApplication(sys.argv)
