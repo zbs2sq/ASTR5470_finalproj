@@ -119,15 +119,20 @@ RESULTS:
 TESTS OF SUCCESS:
 
 1) Testing Residuals
+
 Generally, the residuals of the spectral lines with the continuum subtracted have a baseline very close to y=0, which demonstrates a good fit of the continuum and a successful subtraction.
 
-3) Examining Gaussian Fits
+
+2) Examining Gaussian Fits
+
 For each Gaussian fit to spectral data, we get a generally very good fit, which is promising.
 We do have a few exceptions, however.
 If the continuum subtraction isn't totally successful, or we have a second spectral line nearby, the Gaussian can capture this extra data and be skewed.
 This would be important to fix in the future by implementing a way to define the edges of each emission line so that extra data is not added in.
 
-4) Emission Line Data Confirmation
+
+3) Emission Line Data Confirmation
+
 I tested how well my fits of emission lines were with a fairly robust program written by my advisor Prof. Mark Whittle.
 I analyzed the line at ~4400A in the object J1246 in both programs and found the following.
 
