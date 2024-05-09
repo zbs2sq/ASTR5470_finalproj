@@ -170,3 +170,5 @@ Overall, I am very proud of how this project turned out.
 I've not created a GUI like this before, and this took a significant portion of my time to get set up.
 I think the interface is very straightforward to use and the code is well implemented, and I'm proud of how it turned out.
 It is very quick and easy to use and returns calculations very quickly and with fair accuracy.
+
+Thanks for a great semester :)
