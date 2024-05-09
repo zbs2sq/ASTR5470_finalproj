@@ -13,6 +13,7 @@ You will likely want to keep your command terminal open and visible, as there ar
 
 
 -- OPENING FILES --
+
 One should have a set of spectral files that are available for testing. 
 The code assumes the file is a .csv file.
 Numerous example files are provided in the github repository for convenience of testing.
@@ -77,9 +78,11 @@ However, this method roughly works, and provides a generally accurate evaluation
 This spectral line will be saved to the Spectral Line Catalog, which can be printed and saved later once all lines have been added.
 
 Future work:
+
     - Should implement a part of the function where you click on the edges of the line to define it.
       Evidently, some lines are much more narrow and some much wider than the 50 datapoints allowed by my function. 
       In the future I'd like to allow the user to define the edges of the line a little easier.
+      
     - Other calculations within the emission line data are very easy to add to the function.
 
 -- Print and Save Line Catalog --
@@ -103,8 +106,11 @@ In the project proposal, I laid out four main ideas for what this code would do:
 2) It would detect the reshift of the object or have the redshift input by the user and automatically find emission lines.
 3) Each emission line would then get multiple values measured:
     - First, it would subtract the continuum from the values of the spectra identified around where the line is.
+
     - It would then fit Gaussian fit to the emission line, retrieving the best fit parameters.
+
     - It would then have a function allowing to subtract emission lines from each other in the case of having multiple next to each other.
+
     - Overall, it would gather equivalent widths, maximum flux avlues, and other datapoints.
 4) Finally, there was a possibility of implementing a method of identifying spectral types using machine learning from inputting numerous quasar files.
 
