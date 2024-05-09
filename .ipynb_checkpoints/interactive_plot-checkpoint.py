@@ -2,15 +2,12 @@
 Zachary Stevens
 Final Project - ASTR 5470
 Quasar Spectral Analysis in Python
-
-Sources of Help:
-https://www.pythonguis.com/tutorials/plotting-matplotlib/
-
 '''
 
 # ----------------------------
 # Import statements
 # ----------------------------
+import os
 import sys
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -185,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
     def define_continuum(self):
         '''
-        This function takes every 200th datapoint within the function and fits a second order polynomial to it, shown in red.
+        This function takes every 200th datapoint within the function and fits a third order polynomial to it, shown in red.
         It then removes all points >1*sigma away from the second order fit.
         Removed points are shown in red.
         It then fits a fifth order polynomial to the remaining points. Both the remaining points and the fit are shown in green.
@@ -197,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):
             orig_continuum_wavelengths = np.arange(self.wavelengths[0], self.wavelengths[len(self.wavelengths) - 1], 200)
             orig_continuum_fluxes = f(orig_continuum_wavelengths)
             
-            original_fit = np.polyfit(orig_continuum_wavelengths, orig_continuum_fluxes, 2, full=True)
+            original_fit = np.polyfit(orig_continuum_wavelengths, orig_continuum_fluxes, 3, full=True)
             original_yfit = np.polyval(original_fit[0], orig_continuum_wavelengths)
             
             residuals = orig_continuum_fluxes - original_yfit
@@ -214,8 +211,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.canvas.axes.plot(orig_continuum_wavelengths, orig_continuum_fluxes, 'o', color = 'red')
             self.canvas.axes.plot(self.continuum_wavelengths, self.continuum_fluxes, 'o', color='green')
             
-            self.canvas.axes.plot(orig_continuum_wavelengths, original_yfit, '-', color='red')
-            self.canvas.axes.plot(self.wavelengths, self.continuum_fit, '-', color='green', label = 'Continuum Fit')
+            self.canvas.axes.plot(orig_continuum_wavelengths, original_yfit, '-', color='red', label = 'Original Continuum Fit')
+            self.canvas.axes.plot(self.wavelengths, self.continuum_fit, '-', color='green', label = 'Final Continuum Fit')
             self.canvas.axes.legend()
             self.canvas.draw()
             self.continuum_is_calculated = True
@@ -274,14 +271,17 @@ class MainWindow(QtWidgets.QMainWindow):
         It is a bit of a narrow range, so be fairly precise when you're identifying a line!
         The algorithm then subtracts the continuum from the data at 50 points to the left and the right and leaves us with the residuals, plotted in dotted red.
         We then fit a Gaussian to the residual data.
+        
         After fitting the Gaussian, we integrate to calculate the flux underneath.
-        Then, we divide this area by the flux value of the continuum at the peak wavelength of the line.
-        This assumes a flat, linear continuum, which is evidently untrue. However, this method is rough, and provides a generally accurate evaluation.
+        This is saved as total flux.
+        Then, we divide this area by the flux value of the continuum at the peak wavelength of the line in order to get the equivalent width.
+        This assumes a flat, linear continuum, which is evidently untrue. 
+        However, this method is rough, and provides a generally accurate evaluation.
         
         Future work:
             - Should implement a part of the function where you click on the edges of the line to define it.
-                Evidently, some lines are much more narrow and some much wider than the 50 datapoints allowed by my function. 
-                In the future I'd like to allow the user to define the edges of the line a little easier.
+              Evidently, some lines are much more narrow and some much wider than the 50 datapoints allowed by my function. 
+              In the future I'd like to allow the user to define the edges of the line a little easier.
         '''
         
         # This section searches for the nearest local maximum
@@ -306,7 +306,7 @@ class MainWindow(QtWidgets.QMainWindow):
         equivalent_width = area/self.continuum_fit[max_wavelength_index]
     
         # This block now saves the data of that line. I hope.
-        line = SpectralLine(wavelength = self.wavelengths[max_wavelength_index], fit = fit_y, eq_wid=equivalent_width, max_flux=max_flux_value)
+        line = SpectralLine(wavelength = self.wavelengths[max_wavelength_index], fit = fit_y, eq_wid=equivalent_width, max_flux=max_flux_value, total_flux = area)
         self.line_catalog.append(line)
 
                
@@ -319,10 +319,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
     def print_line_catalog(self):
+        print('-----------')
         for line in self.line_catalog:
             print("\nWavelength:  ", line.line_wav, "(Angstroms)")
             print("- Max Flux:  ", line.max_flux, "(erg/s/cm2/A)")
+            print("- Tot. Flux: ", line.total_flux, "(erg/s/cm2/A)")
             print("- Eq. Width: ", line.equivalent_width, "(Angstroms)")
+        print('-----------')
             
             
     def save_line_catalog(self):
@@ -330,17 +333,19 @@ class MainWindow(QtWidgets.QMainWindow):
         Saves a .csv file of the emission line data
         '''
         
-        self.line_catalog_output.field_names = ["Wavelength (Angstroms)", "Equivalent Width", "Peak Flux"]
+        self.line_catalog_output.field_names = ["Wavelength (Angstroms)", "Equivalent Width", "Peak Flux", "Total Flux"]
         for line in self.line_catalog:
-            self.line_catalog_output.add_row([line.line_wav, line.max_flux, line.equivalent_width])
+            self.line_catalog_output.add_row([line.line_wav, line.equivalent_width, line.max_flux, line.total_flux])
             
         print(self.line_catalog_output)
         
-        with open(f'{self.object_name} Line Catalog.csv', 'w', newline='') as obj_output:
+        if not os.path.exists("./Line Catalogs/"):
+            os.mkdir("./Line Catalogs/")
+            
+        with open(f'./Line Catalogs/{self.object_name} Line Catalog.csv', 'w', newline='') as obj_output:
             obj_output.write(self.line_catalog_output.get_csv_string(delimiter = ' '))
             
         self.close()
-        
             
 
         
@@ -352,11 +357,12 @@ class SpectralLine():
     - Equivalent width
     '''
     
-    def __init__(self, wavelength, fit, eq_wid, max_flux):
+    def __init__(self, wavelength, fit, eq_wid, max_flux, total_flux):
         self.line_wav = wavelength
         self.line_fit = fit
         self.equivalent_width = eq_wid
         self.max_flux = max_flux
+        self.total_flux = total_flux
 
         
 
