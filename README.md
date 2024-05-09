@@ -134,11 +134,13 @@ I analyzed the line at ~4400A in the object J1246 in both programs and found the
 Line Wavelength:
 - Zach Program: 4399.0A
 - Whittle Program: 4407A
-(Offset is due to more ambiguous central definition in Whittle's program)
+
+Offset is due to more ambiguous central definition in Whittle's program
 
 Eq. Width:
 - Zach Program: 76.7 A
 - Whittle Program: 97.2 A
+
 Offset is likely because the automatic continuum created in my program is not as accurate as the continuum defined in Whittle's program.
 I also assume a constant continuum using the value of the continuum at the peak of the emission line.
 My method is not as accurate, but it is still on the correct order of magnitude, which is promising.
@@ -146,6 +148,7 @@ My method is not as accurate, but it is still on the correct order of magnitude,
 Total Flux:
 - Zach Program: 5.32e-15 (erg/s/cm2/A)
 - Whittle Program: 6.65e-15 (erg/s/cm2/A)
+
 This is only a very slight offset, which is once again promising.
 Offset likely comes from the issue that we are not capturing the entire line in my program, which will be fixed in the futre when one is able to define the edges of the line.
 
