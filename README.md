@@ -6,8 +6,11 @@ This project aims to evaluate quasar spectra within a Python GUI.
 
 ----------------
 HOW TO USE:
+
 To use this code, all one has to do is run 
+
     >>> python interactive_plot.py
+    
 in the respective file location.
 You will likely want to keep your command terminal open and visible, as there are occasional outputs that are printed to the command terminal.
 
