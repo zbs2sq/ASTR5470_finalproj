@@ -79,11 +79,11 @@ This spectral line will be saved to the Spectral Line Catalog, which can be prin
 
 Future work:
 
-    - Should implement a part of the function where you click on the edges of the line to define it.
+- Should implement a part of the function where you click on the edges of the line to define it.
       Evidently, some lines are much more narrow and some much wider than the 50 datapoints allowed by my function. 
       In the future I'd like to allow the user to define the edges of the line a little easier.
       
-    - Other calculations within the emission line data are very easy to add to the function.
+- Other calculations within the emission line data are very easy to add to the function.
 
 -- Print and Save Line Catalog --
 
