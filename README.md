@@ -35,10 +35,12 @@ An example of the header is provided below:
 
 
 -- OTHER FUNCTIONS --
+
 The other functions are fairly well documented within interactive_plot.py, but for convenience their headers are listed below.
 
 
 -- Defining Continua --
+
 This function takes every 200th datapoint within the function and fits a third order polynomial to it, shown in red.
 It then removes all points >1 * sigma away from the second order fit.
 Removed points are shown in red.
@@ -47,6 +49,7 @@ This is done with very little user input other than clicking the button, but par
 
 
 -- Smooth --
+
 This function isn't functioning quite how I'd like it to.
 Currently all it does is take every other point.
 In the future, I'd implement a flux conserving resampler and use that.
@@ -56,6 +59,7 @@ However... time constraints :(
 
 
 -- Fit Spectral Line --
+
 First, activate the function by clicking Fit Spectral Line.
 Then, click near the peak of the nearest emission line.
 
@@ -79,17 +83,20 @@ Future work:
     - Other calculations within the emission line data are very easy to add to the function.
 
 -- Print and Save Line Catalog --
+
 Print Line Catalog prints all saved spectral lines to the command terminal, with their respective wavelength values, maximum fluxes, and equivalent widths.
 The Save Line Catalog button then saves the catalog to a .csv file titled with the object name, followed by 'Line Catalog.'
 This file contains the data of each emission line.
 
 -- Saving plots --
+
 One will likely desire to save an image of emission lines, continua, and the like.
 The toolbar at the top of the widget allows for zoom-ins of the plot, movement throughout, and saving the plot as any file type the user would like.
 
 
 ------------------------
 GOALS:
+
 In the project proposal, I laid out four main ideas for what this code would do:
 
 1) It would calculate the continuum by calculating a low order fit, rejecting points outside a certain range, and refitting higher order polynomial.
@@ -102,6 +109,7 @@ In the project proposal, I laid out four main ideas for what this code would do:
 4) Finally, there was a possibility of implementing a method of identifying spectral types using machine learning from inputting numerous quasar files.
 
 RESULTS:
+
 1) The continuum fitting was successfully implemented!
 2) A redshift calculation was not implemented, unfortunately, but this should be fairly easy to do in the future.
 3) The emission line measurements were implemented with great success, and more calculations are very easy to add to the function.
@@ -113,13 +121,13 @@ TESTS OF SUCCESS:
 1) Testing Residuals
 Generally, the residuals of the spectral lines with the continuum subtracted have a baseline very close to y=0, which demonstrates a good fit of the continuum and a successful subtraction.
 
-2) Examining Gaussian Fits
+3) Examining Gaussian Fits
 For each Gaussian fit to spectral data, we get a generally very good fit, which is promising.
 We do have a few exceptions, however.
 If the continuum subtraction isn't totally successful, or we have a second spectral line nearby, the Gaussian can capture this extra data and be skewed.
 This would be important to fix in the future by implementing a way to define the edges of each emission line so that extra data is not added in.
 
-3) Emission Line Data Confirmation
+4) Emission Line Data Confirmation
 I tested how well my fits of emission lines were with a fairly robust program written by my advisor Prof. Mark Whittle.
 I analyzed the line at ~4400A in the object J1246 in both programs and found the following.
 
